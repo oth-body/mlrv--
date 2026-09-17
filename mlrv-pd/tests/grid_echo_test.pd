@@ -1,0 +1,17 @@
+#N canvas 0 0 400 400 10;
+#X obj 20 20 serialosc 8000 /monome;
+#X obj 20 100 print device_register;
+#X obj 200 100 unpack f f f;
+#X obj 200 140 print grid_key;
+#X obj 280 180 * 15;
+#X obj 320 220 pack f f f;
+#X obj 320 260 grid;
+#X connect 0 0 1 0;
+#X connect 0 1 2 0;
+#X connect 0 1 3 0;
+#X connect 2 2 4 0;
+#X connect 2 1 5 1;
+#X connect 2 0 5 0;
+#X connect 4 0 5 2;
+#X connect 5 0 6 0;
+#X connect 6 0 0 1;
