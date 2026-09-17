@@ -5,14 +5,15 @@
 #X msg 10 100 0;
 #X obj 150 100 unpack f f f;
 #X obj 150 150 -;
-#X obj 280 150 * $2;
+#X obj 280 150 * \$2;
 #X obj 280 200 /;
 #X obj 10 250 phasor~;
 #X obj 10 300 *~;
 #X obj 10 350 +~;
-#X obj 10 400 tabread4~ $1;
+#X obj 10 400 tabread4~ \$1;
 #X obj 10 450 outlet~;
 #X text 150 450 known limitation: tabread4~'s 4-point interpolation window can read up to about 2 samples outside loopStart..loopEnd at the loop seam. no crossfade yet. creation args: play_loop~ tableName sampleRate (both required no default).;
+#X text 150 490 verified 2026-09-17 against a live Pd 0.56.5 install: loads clean via pd -nogui \, both the bang-retrigger and the set-parameters list process without error \, and the range/frequency arithmetic (unpack right-to-left firing order) was checked standalone against known inputs (rate 2 \, loopEnd 2000 \, loopStart 1000 -> range 1000 \, freq 88.2 at 44100sr) and matched. Not yet verified: actual audio output against a real sample \, since tabread4~ reads zeros from an untouched test array.;
 #X connect 0 0 2 0;
 #X connect 2 0 3 0;
 #X connect 3 0 8 1;

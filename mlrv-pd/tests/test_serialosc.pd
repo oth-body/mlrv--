@@ -1,0 +1,6 @@
+#N canvas 0 0 400 300 10;
+#X obj 20 20 loadbang;
+#X obj 20 100 serialosc 8000;
+#X obj 20 140 print serialosc_device;
+#X connect 0 0 1 0;
+#X connect 1 0 2 0;
