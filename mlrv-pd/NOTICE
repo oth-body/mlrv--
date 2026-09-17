@@ -1,0 +1,39 @@
+mlrv-pd — Pure Data port of mlrv2
+==================================
+
+This directory is a from-scratch Pure Data reimplementation of the
+behavior found in ../mlrv2 (Max/MSP patches), which is itself an
+unmodified fork of:
+
+    https://github.com/trentgill/mlrv2
+
+...a refactoring of Brian Crabtree's original "mlr", extended by
+Trent Gill (galapagoose) and Michael Felix (%).
+
+License status of the original
+-------------------------------
+Neither this fork (oth-body/mlrv--) nor upstream (trentgill/mlrv2)
+carries a LICENSE file. Absent one, the original Max/MSP source is
+all-rights-reserved by default. No file, patch, or byte from
+../mlrv2/patchers/*.maxpat has been copied into this directory —
+everything here is written from scratch against the *observed
+behavior and wire protocols* of the original (grid/OSC layout,
+signal-flow shape, parameter ranges visible in comments), which is
+not itself copyrightable.
+
+Do not add a LICENSE file to this directory implying original
+authors' work is being relicensed. If mlrv-pd is ever distributed
+beyond personal use, get explicit permission from Trent Gill /
+Michael Felix first, since the intent (feature parity with their
+design) is close enough to derivative work that it deserves asking,
+license technicality aside.
+
+Known gaps vs. the original (see handoff doc for detail)
+----------------------------------------------------------
+- The original's `metapattern.maxpat` / `gridcell.maxpat` use
+  `xrecord~` / `xgroove~`, objects from Thomas Grill's third-party
+  "xsample" external, not stock Max. `mixer.maxpat` itself contains
+  the in-patch comment "xsample external not found" — i.e. the
+  original may not run cleanly in a current Max install either.
+  This port does not attempt to replicate xsample-specific behavior;
+  it targets what `groove~`/`play~`-based patchers do.
