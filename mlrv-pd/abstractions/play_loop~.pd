@@ -1,7 +1,7 @@
 #N canvas 0 0 500 550 10;
 #X obj 10 20 inlet;
 #X text 110 20 send a 3-float list: rate loopEndSamples loopStartSamples to update parameters atomically. send bang to retrigger from loop start.;
-#X obj 10 60 route bang;
+#X obj 10 60 route bang set;
 #X msg 10 100 0;
 #X obj 150 100 unpack f f f;
 #X obj 150 150 -;
@@ -17,12 +17,15 @@
 #X text 150 530 turn 9 (2026-09-17) real-audio test found a real bug -- not in this abstraction \, in how it was being called: a test passed sampleRate=44100 as \$2 \, but this machine's actual Pd engine runs at 48000Hz ([samplerate~] confirms it). The loop played about 8% too slowly as a direct result -- position tracking was otherwise perfect (correlation 1.0 against a known ramp once the right rate was used). Rather than leave this as a footgun for the next caller \, sampleRate is no longer a creation argument at all: [loadbang] -> [samplerate~] queries the actual running engine rate once at load time and feeds it into the frequency multiply directly \, so it can never be wrong. Verified against a real loaded WAV (linear ramp \, tests/gen_test_wav.py + tests/test_play_loop_audio.pd): captured output vs. expected ramp \, correlation coefficient 1.000000 \, mean absolute error 0.003% of full-scale range \, perfectly monotonic across all 4409 steps.;
 #X obj 10 570 loadbang;
 #X obj 10 610 samplerate~;
+#X obj 150 570 symbol;
+#X msg 150 610 set \$1;
+#X text 150 650 turn 10 (2026-09-18): added a "set" method (send "set arrayname" to switch which array tabread4~ reads from \, without recreating the voice) so file_poly.pd can re-point one long-lived play_loop~ voice at any loaded sample slot instead of needing one play_loop~ per slot. Verified empirically against tabread4~-help.pd's own documented idiom (symbol -> msg "set \$1" -> tabread4~) before relying on it -- confirmed a live tabread4~ really does start reading a different array after receiving this message \, not just assumed from the help text. Same \$1-in-message-box-means-runtime-atom rule as gotcha #1 applies here too: this is a different mechanism from the \$1 in [tabread4~ \$1] above \, which is this abstraction's own creation argument \, resolved once at load time.;
 #X connect 0 0 2 0;
 #X connect 16 0 17 0;
 #X connect 17 0 6 1;
 #X connect 2 0 3 0;
 #X connect 3 0 8 1;
-#X connect 2 1 4 0;
+#X connect 2 2 4 0;
 #X connect 4 2 5 1;
 #X connect 4 2 10 1;
 #X connect 4 1 5 0;
@@ -35,3 +38,6 @@
 #X connect 9 0 10 0;
 #X connect 10 0 11 0;
 #X connect 11 0 12 0;
+#X connect 2 1 18 0;
+#X connect 18 0 19 0;
+#X connect 19 0 11 0;
