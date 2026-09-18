@@ -15,7 +15,7 @@
 #X obj 400 180 route list;
 #X obj 400 220 route serialosc monome;
 #X obj 400 260 route device add remove;
-#X obj 620 260 route grid;
+#X obj 620 260 route grid tilt;
 #X obj 620 300 route key;
 #X obj 20 500 outlet;
 #X obj 150 500 outlet;
@@ -39,6 +39,10 @@
 #X obj 900 140 oscformat /monome/grid/led/level/set;
 #X obj 780 260 t b;
 #X text 780 300 turn 5 bugfix: /serialosc/add and /serialosc/remove carry a data payload (same triple shape as /serialosc/device -- confirmed reproducible against the real daemon \, not assumed) \, not a bare bang. feeding that payload directly into a [float] object crashed it with "float: no method for '<serial>'" the moment a real add/remove notification arrived (took ~20s into a live session to trigger \, likely a USB reconnect blip -- this device's kernel enumeration was flaky earlier too). [t b] converts any incoming message \, payload or not \, into a genuine bang before it reaches the rescan trigger.;
+#X msg 850 380 0 1;
+#X obj 850 420 oscformat /monome/tilt/set;
+#X text 850 460 turn 7 (2026-09-17): tilt sensor 0 is armed as part of the handshake (tilt/set sensor enable -- src/serialosc-device/osc/mext_methods.c: tilt_set_handler). events then arrive at <prefix>/tilt as sensor x y z and come out outlet 2. only sensor 0 is enabled -- this device may have more than one \, not checked. no way yet to disable tilt reporting or query which sensors exist (no /sys/info parsing).;
+#X obj 280 780 outlet;
 #X connect 2 0 4 0;
 #X connect 35 0 37 0;
 #X connect 37 0 23 0;
@@ -75,3 +79,7 @@
 #X connect 28 0 29 0;
 #X connect 29 0 30 0;
 #X connect 30 0 23 0;
+#X connect 24 0 40 0;
+#X connect 40 0 41 0;
+#X connect 41 0 23 0;
+#X connect 16 1 43 0;
