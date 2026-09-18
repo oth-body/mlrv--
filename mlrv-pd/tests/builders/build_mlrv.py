@@ -2,6 +2,7 @@
 import sys
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
 from pdgen import Patch
+from mlrv_core import build_core
 
 p = Patch(w=1200, h=700)
 
@@ -27,34 +28,21 @@ HEADER = p.text(
     "-path flags (abstractions\\, patchers\\, samples) that [declare "
     "-path] could not be made to cover for soundfiler\\'s own file "
     "lookups (tried\\, did not work\\, not chased further -- documented "
-    "as a real unresolved question in the handoff log)."
+    "as a real unresolved question in the handoff log). Core wiring "
+    "shared with tests/test_mlrv.pd via mlrv_core.py -- see "
+    "run_mlrv_test.sh for the automated (no listening required) "
+    "regression suite."
 )
 
-SERIALOSC = p.obj(20, 200, "serialosc 8000 /monome")
-GRID = p.obj(20, 260, "grid")
-FILE_POLY = p.obj(300, 200, "file_poly")
-MAPPING = p.obj(300, 320, "mapping")
-MASTER = p.obj(600, 200, "master")
+core = build_core(p)
+SERIALOSC, GRID, FILE_POLY, MAPPING, MASTER = (
+    core["SERIALOSC"], core["GRID"], core["FILE_POLY"], core["MAPPING"], core["MASTER"]
+)
+
 DAC = p.obj(600, 260, "dac~ 1 2")
-
-# --- control/LED chain ---
-p.connect(SERIALOSC, 1, MAPPING, 0)     # grid_key (x y state) -> mapping inlet0
-p.connect(FILE_POLY, 1, MAPPING, 1)     # info (loaded.../voice...) -> mapping inlet1
-p.connect(MAPPING, 0, FILE_POLY, 0)     # commands (play.../stopall) -> file_poly inlet0
-p.connect(MAPPING, 1, GRID, 0)          # LED (x y level) -> grid inlet0
-p.connect(GRID, 0, SERIALOSC, 1)        # grid outlet -> serialosc LED-control inlet1
-
-# --- audio chain (mixer.pd not yet wired in -- see header) ---
 p.connect(FILE_POLY, 0, MASTER, 0)      # file_poly audio outlet~ -> master inlet~0
 p.connect(MASTER, 0, DAC, 0)
 p.connect(MASTER, 0, DAC, 1)
-
-# master.pd's internal [receive~ fxin] has no matching [send~] until mixer.pd
-# (or an effect) is wired in -- silences the harmless but noisy "no matching
-# send" load-time error with an explicit silent placeholder, not a real bus.
-FXIN_STUB = p.obj(600, 320, "sig~ 0")
-FXIN_SEND = p.obj(600, 360, "send~ fxin")
-p.connect(FXIN_STUB, 0, FXIN_SEND, 0)
 
 # --- bootstrap ---
 LB = p.obj(20, 400, "loadbang")
@@ -76,9 +64,12 @@ p.connect(LOAD1, 0, FILE_POLY, 0)
 
 FOOTER = p.text(
     20, 520,
-    "status 2026-09-18: loads clean under pd -nogui. Real end-to-end test "
-    "(real grid + real daemon + real audible sound) not yet run this turn "
-    "-- see handoff log for what was actually verified vs. just wired."
+    "status 2026-09-18 (turn 16): loads clean under pd -nogui \\; a "
+    "simulated grid key press (fake_serialosc.py) produced real "
+    "correctly-scaled audio through the whole chain (handoff log). "
+    "turn 17: real-hardware live listening test deferred by request -- "
+    "run_mlrv_test.sh (automated\\, fake daemon\\, no listening needed) "
+    "is the regression suite to trust instead."
 )
 
 p.write("../../mlrv.pd")

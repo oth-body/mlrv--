@@ -12,8 +12,16 @@ Not a real monome/serialosc: no serial hardware, no add/remove lifecycle, no
 /sys/info. It is faithful on the bytes that this port's serialosc.pd uses.
 
 Run with no args; logs one line per wire event to stdout (flush=True).
+
+The simulated post-handshake grid/key events default to (2,3,1) then
+(1,0,0), matching the original handshake regression test. Override with
+the FAKE_GRID_KEYS env var: a space-separated list of "x,y,state"
+triples, e.g. FAKE_GRID_KEYS="0,7,1 0,7,0" to simulate pressing and
+releasing mapping.pd's trigger-row cell for slot 0 (used by
+run_mlrv_test.sh's end-to-end check).
 """
 
+import os
 import socket
 import struct
 import sys
@@ -24,6 +32,17 @@ DEVICE_PORT = 40921          # fake device "own" port, advertised in replies
 DEVICE_ID = "m0000-0000"
 DEVICE_TYPE = "grid"
 PREFIX = "/monome"           # prefix we expect serialosc.pd to send
+
+
+def grid_keys():
+    raw = os.environ.get("FAKE_GRID_KEYS")
+    if not raw:
+        return ((2, 3, 1), (1, 0, 0))
+    out = []
+    for triple in raw.split():
+        x, y, state = (int(v) for v in triple.split(","))
+        out.append((x, y, state))
+    return tuple(out)
 
 log_lock = threading.Lock()
 
@@ -129,7 +148,7 @@ def device(app_port, prefix):
         else:
             log("DEVICE", f"ignored {addr}")
     # Handshake complete: send grid key events back at the app's port.
-    for x, y, state in ((2, 3, 1), (1, 0, 0)):
+    for x, y, state in grid_keys():
         key = osc_msg(f"{prefix[0]}/grid/key", "iii", x, y, state)
         s.sendto(key, ("127.0.0.1", app_port[0]))
         log("DEVICE", f"sent {prefix[0]}/grid/key {x} {y} {state} -> {app_port[0]}")
