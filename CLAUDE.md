@@ -65,7 +65,7 @@ Trust this script's actual exit code, not any "verified" claim written in a comm
 
 ## Git conventions for this repo
 
-`upstream` remote points at `trentgill/mlrv2`. `origin` is the public fork — it has never diverged from upstream until the `mlrv-pd/` commits, so pushing to `origin` is this fork's first-ever independent history; don't push without explicit confirmation.
+`upstream` remote points at `trentgill/mlrv2`. `origin` is the public fork. It was a byte-identical mirror of upstream until 2026-09-17, when the `mlrv-pd/` work was pushed to `origin` with the user's explicit confirmation — this fork's first-ever independent history. Pushing is no longer a first-time event, but it's still a public fork under the user's name; confirm before pushing anything you weren't explicitly asked to push.
 
 ## Where the full running history lives
 
