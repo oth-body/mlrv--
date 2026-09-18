@@ -1,6 +1,6 @@
 #N canvas 0 0 400 400 10;
 #X obj 20 20 table testtable 44100;
-#X obj 20 200 play_loop~ testtable 44100;
+#X obj 20 200 play_loop~ testtable;
 #X obj 20 40 loadbang;
 #X msg 20 100 1 1000 0;
 #X msg 20 140 bang;
