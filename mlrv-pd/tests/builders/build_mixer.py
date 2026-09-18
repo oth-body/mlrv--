@@ -3,7 +3,7 @@ import sys
 sys.path.insert(0, __file__.rsplit("/", 1)[0])
 from pdgen import Patch
 
-p = Patch(w=1000, h=500)
+p = Patch(w=1100, h=780)
 
 # --- inlets: 4 audio (x ascending) + 1 control (rightmost) ---
 IN = [p.obj(20 + 130 * v, 20, "inlet~") for v in range(4)]
@@ -20,7 +20,11 @@ HEADER = p.text(
     "it up\\, one DSP block of latency across the abstraction boundary (gotcha 16). "
     "vols default to 1.0 at load\\; sends default to 0 (line~ own unset default -- "
     "no seeding needed). mute is vol <v> 0\\, no dedicated mute message. pan deferred "
-    "(mono master)."
+    "(mono master). "
+    "query (route outlet 2): dumps tracked vol/send state as replayable control lines "
+    "(vol <v> <gain> x4 then send <v> <level> x4) out outlet 1 -- the values live in "
+    "[float] stores tapped off every control receipt (line~ own state is not readable)\\, "
+    "inits matching the load defaults."
 )
 
 # --- per-voice vol and send multiply chains ---
@@ -64,7 +68,7 @@ p.connect(SEND_MULT[3], 0, WET_ADD3, 1)
 p.connect(WET_ADD3, 0, WET_SEND, 0)
 
 # --- control dispatch ---
-ROUTE_VS = p.obj(700, 60, "route vol send")
+ROUTE_VS = p.obj(700, 60, "route vol send query")
 ROUTE_VOL_V = p.obj(620, 100, "route 0 1 2 3")
 ROUTE_SEND_V = p.obj(820, 100, "route 0 1 2 3")
 
@@ -75,11 +79,54 @@ p.connect(ROUTE_VS, 1, ROUTE_SEND_V, 0)
 VOL_MSG = [p.msg(620 + 45 * v, 140, "\\$1 10") for v in range(4)]
 SEND_MSG = [p.msg(820 + 45 * v, 140, "\\$1 10") for v in range(4)]
 
+# --- value stores for query: tap each $1-10 msg, keep the gain/level ---
+# [float] inits match the load-time defaults (vols 1.0, sends 0.0) so a
+# query before any control message already agrees with line~'s state.
+VOL_STORE = [p.obj(620 + 45 * v, 260, "float 1") for v in range(4)]
+SEND_STORE = [p.obj(820 + 45 * v, 260, "float 0") for v in range(4)]
+
 for v in range(4):
     p.connect(ROUTE_VOL_V, v, VOL_MSG[v], 0)
-    p.connect(VOL_MSG[v], 0, VOL_LINE[v], 0)
+    TEE_V = p.obj(620 + 45 * v, 180, "t a a")
+    UNP_V = p.obj(620 + 45 * v, 220, "unpack f f")
+    p.connect(VOL_MSG[v], 0, TEE_V, 0)
+    p.connect(TEE_V, 1, VOL_LINE[v], 0)
+    p.connect(TEE_V, 0, UNP_V, 0)
+    p.connect(UNP_V, 0, VOL_STORE[v], 1)
     p.connect(ROUTE_SEND_V, v, SEND_MSG[v], 0)
-    p.connect(SEND_MSG[v], 0, SEND_LINE[v], 0)
+    TEE_S = p.obj(820 + 45 * v, 180, "t a a")
+    UNP_S = p.obj(820 + 45 * v, 220, "unpack f f")
+    p.connect(SEND_MSG[v], 0, TEE_S, 0)
+    p.connect(TEE_S, 1, SEND_LINE[v], 0)
+    p.connect(TEE_S, 0, UNP_S, 0)
+    p.connect(UNP_S, 0, SEND_STORE[v], 1)
+
+# --- query: dump tracked vol/send state as replayable control lines ---
+# route outlet 2 (bare `query` -> bang). vols 0..3 then sends 0..3, each
+# `vol <v> <gain>` / `send <v> <level>` out outlet 1 (the first control
+# outlet; outlet~ at x=20 stays outlet 0 per gotcha 10). per-line order:
+# slot const stored cold first, stored value arrives hot (gotcha 15).
+Q_FAN = p.obj(20, 520, "t b b b b b b b b")
+Q_OUT = p.obj(950, 560, "outlet")
+p.connect(ROUTE_VS, 2, Q_FAN, 0)
+
+def _qline(fan_outlet, x, store, sel, v):
+    MSLOT = p.msg(x, 570, str(v))
+    T2 = p.obj(x, 610, "t b f")
+    PK = p.obj(x, 650, "pack f f")
+    MQ = p.msg(x, 690, f"{sel} \\$2 \\$1")
+    p.connect(Q_FAN, fan_outlet, MSLOT, 0)
+    p.connect(MSLOT, 0, T2, 0)
+    p.connect(T2, 1, PK, 1)
+    p.connect(T2, 0, store, 0)
+    p.connect(store, 0, PK, 0)
+    p.connect(PK, 0, MQ, 0)
+    p.connect(MQ, 0, Q_OUT, 0)
+
+for v in range(4):
+    _qline(7 - v, 60 + 100 * v, VOL_STORE[v], "vol", v)
+for v in range(4):
+    _qline(3 - v, 460 + 100 * v, SEND_STORE[v], "send", v)
 
 # --- default vol seeding: 1.0 at load, matching p vol_fade's loadmess 1. ---
 SEED_LB = p.obj(950, 20, "loadbang")
