@@ -207,6 +207,10 @@
 #X obj 1000 1800 tgl 20 0 empty empty rec_loop 0 -8 0 10 #dfdfdf #000000 #000000 0 1;
 #X msg 1170 1800 loop \$1;
 #X msg 1330 1800 learn rec_loop;
+#X obj 300 340 file_browser;
+#X obj 800 340 bng 20 250 50 0 empty empty open 0 -8 0 10 #dfdfdf #000000 #000000;
+#X msg 800 380 open;
+#X text 800 400 file browser open (GUI) -- 2026-09-18 sample browser;
 #X connect 1 1 4 0;
 #X connect 3 1 4 1;
 #X connect 4 0 3 0;
@@ -398,3 +402,7 @@
 #X connect 205 0 206 0;
 #X connect 206 0 11 1;
 #X connect 207 0 23 0;
+#X connect 4 5 208 0;
+#X connect 208 0 3 0;
+#X connect 209 0 210 0;
+#X connect 210 0 208 0;

@@ -34,12 +34,23 @@ def build_core(p):
     p.connect(FILE_POLY, 5, MIXER, 3)
     p.connect(MIXER, 0, MASTER, 0)          # mixer dry sum -> master
 
-    # keep the fxin stub so master's receive~ fxin has a matching send even
-    # when no effect is wired between mixer fxout and master fxin (otherwise
-    # Pd logs "no matching send" harmlessly but noisily)
-    FXIN_STUB = p.obj(600, 320, "sig~ 0")
-    FXIN_SEND = p.obj(600, 360, "send~ fxin")
-    p.connect(FXIN_STUB, 0, FXIN_SEND, 0)
+    # Effects between mixer's fxout (per-voice wet send) and master's
+    # fxin (return, summed pre-limiter) -- replaces the old sig~0/
+    # send~fxin silencer stub. Each effect's [receive~ fxout] reads
+    # mixer's real send~ fxout (multiple receivers on one bus is safe);
+    # each effect's real [outlet~] is summed here with an ordinary [+~]
+    # before the ONE real [send~ fxin] -- NOT a second bus per effect,
+    # since two effects each with their own internal send~ fxin would
+    # collide exactly like gotcha #31 describes (see build_delay_fx.py's
+    # docstring for the full reasoning behind this outlet~-and-sum
+    # design, which replaced an earlier bus-per-effect draft).
+    DELAY = p.obj(460, 320, "delay_fx~")
+    REVERB = p.obj(600, 320, "reverb_fx~")
+    FX_SUM = p.obj(460, 360, "+~")
+    FX_SEND = p.obj(460, 400, "send~ fxin")
+    p.connect(DELAY, 0, FX_SUM, 0)
+    p.connect(REVERB, 0, FX_SUM, 1)
+    p.connect(FX_SUM, 0, FX_SEND, 0)
 
     return {
         "SERIALOSC": SERIALOSC,
@@ -48,4 +59,6 @@ def build_core(p):
         "MAPPING": MAPPING,
         "MIXER": MIXER,
         "MASTER": MASTER,
+        "DELAY": DELAY,
+        "REVERB": REVERB,
     }

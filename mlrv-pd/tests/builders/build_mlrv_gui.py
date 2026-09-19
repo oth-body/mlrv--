@@ -7,10 +7,14 @@ widgets emit -- widgets themselves can't move without a display).
 
 Contents:
 - ENGINE (mirrors mlrv.pd exactly): serialosc/grid/file_poly/mapping/
-  master/dac~ (+sig~/send~fxin), demo sample loads, DSP on, master 0.8.
-  mixer.pd NOT wired (same pre-existing file_poly per-voice-outlets TODO
-  as mlrv.pd) -- vol/send params stay message-only, their dispatch outlets
-  deliberately unconnected (see demux below), never misrouted.
+  mixer/master/dac~, `delay_fx~` + `reverb_fx~` (the real effects between
+  mixer's fxout and master's fxin, summed via a plain [+~] into the one
+  real send~ fxin -- see build_delay_fx.py's docstring for why each
+  effect gets a real outlet~ rather than its own bus-based send~ fxin;
+  replaces the old sig~0/send~fxin silencer stub), demo sample loads, DSP
+  on, master 0.8. vol/send params stay message-only past the mixer, their
+  dispatch outlets deliberately unconnected (see demux below), never
+  misrouted.
 - pattern_recorder (outlet0 plays back into mapping.pd's grid dispatch,
   exactly as designed) + record_buffer~ mlrv-rec on adc~ 1 (live input;
   silent headless -- the test asserts done-bang + path, not content).
@@ -56,8 +60,10 @@ fpoly = p.obj(300, 80, "file_poly")
 mapping = p.obj(300, 200, "mapping")
 mixer = p.obj(460, 80, "mixer")
 master = p.obj(600, 80, "master")
-sig = p.obj(600, 200, "sig~ 0")
-sfx = p.obj(600, 240, "send~ fxin")
+delay = p.obj(600, 200, "delay_fx~")
+reverb = p.obj(720, 200, "reverb_fx~")
+fx_sum = p.obj(600, 230, "+~")
+fx_send = p.obj(600, 260, "send~ fxin")
 dac = p.obj(600, 280, "dac~ 1 2")
 prec = p.obj(900, 80, "pattern_recorder")
 rbuf = p.obj(900, 200, "record_buffer~ mlrv-rec")
@@ -75,9 +81,11 @@ p.connect(fpoly, 3, mixer, 1)
 p.connect(fpoly, 4, mixer, 2)
 p.connect(fpoly, 5, mixer, 3)
 p.connect(mixer, 0, master, 0)
+p.connect(delay, 0, fx_sum, 0)
+p.connect(reverb, 0, fx_sum, 1)
+p.connect(fx_sum, 0, fx_send, 0)
 p.connect(master, 0, dac, 0)
 p.connect(master, 0, dac, 1)
-p.connect(sig, 0, sfx, 0)
 p.connect(prec, 0, mapping, 0)
 p.connect(prec, 1, patlive, 0)
 p.connect(adc, 0, rbuf, 0)
