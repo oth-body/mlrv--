@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Standalone mlrv-pd launcher. Locates itself relative to this script so
+# it works regardless of where the AppImage is mounted/extracted -- no
+# system Pd install and no absolute paths required.
+#
+# Defaults to fully headless (-nogui): this instrument is entirely
+# grid-controlled today, no on-screen UI exists yet to interact with, so
+# a bare Pd patcher window would just be empty/confusing. Pass -gui to
+# override and see the console/patcher window (e.g. for debugging).
+#
+# Flags MUST come before the patch file argument, not after -- Pd
+# silently ignores flags placed after the file it's told to open
+# (probe-verified: `pd -nogui file.pd` suppresses the GUI, `pd file.pd
+# -nogui` does not, no error either way). Passing "$@" after the file
+# argument is a real, easy-to-hit bug, not just a style choice.
+set -u
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+NOGUI=(-nogui)
+ARGS=()
+for a in "$@"; do
+    if [ "$a" = "-gui" ]; then NOGUI=(); else ARGS+=("$a"); fi
+done
+
+exec "$HERE/usr/bin/pd" \
+    "${NOGUI[@]}" \
+    -path "$HERE/usr/share/mlrv/pd/abstractions" \
+    -path "$HERE/usr/share/mlrv/pd/patchers" \
+    -path "$HERE/usr/share/mlrv/pd/samples" \
+    "${ARGS[@]}" \
+    "$HERE/usr/share/mlrv/pd/mlrv.pd"

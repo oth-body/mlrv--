@@ -1,0 +1,8 @@
+#N canvas 0 0 500 250 10;
+#X obj 10 20 inlet;
+#X text 110 20 send a float (semitones) \, get a rate multiplier out. formula matches the original's plx.maxpat exactly: pow(2 \, semitones/12). 0 semitones -> 1.0 (unchanged) \, +12 -> 2.0 (one octave up / double speed) \, -12 -> 0.5 (one octave down / half speed). purely a positive multiplier -- combine with a caller's own sign (e.g. multiply by -1) for reverse playback \, this utility doesn't know about direction.;
+#X obj 10 100 expr pow(2 \, $f1 / 12.);
+#X obj 10 150 outlet;
+#X text 110 150 verified 2026-09-18 (turn 20 \, per-voice sample parameters step 2) against known values matching the original's exact formula: 0 -> 1 \, 12 -> 2 \, -12 -> 0.5 \, 7 -> 1.498307 (a perfect fifth up). see tests/run_semitones_to_rate_test.sh.;
+#X connect 0 0 2 0;
+#X connect 2 0 3 0;

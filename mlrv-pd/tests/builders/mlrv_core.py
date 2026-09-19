@@ -17,6 +17,7 @@ def build_core(p):
     GRID = p.obj(20, 260, "grid")
     FILE_POLY = p.obj(300, 200, "file_poly")
     MAPPING = p.obj(300, 320, "mapping")
+    MIXER = p.obj(460, 200, "mixer")
     MASTER = p.obj(600, 200, "master")
 
     # --- control/LED chain ---
@@ -26,9 +27,16 @@ def build_core(p):
     p.connect(MAPPING, 1, GRID, 0)          # LED (x y level) -> grid inlet0
     p.connect(GRID, 0, SERIALOSC, 1)        # grid outlet -> serialosc LED-control inlet1
 
-    # master.pd's internal [receive~ fxin] has no matching [send~] until
-    # mixer.pd (or an effect) is wired in -- silences the harmless but noisy
-    # "no matching send" load-time error with an explicit silent placeholder.
+    # --- audio chain: per-voice file_poly outlets 2-5 -> mixer inlets 0-3 -> master ---
+    p.connect(FILE_POLY, 2, MIXER, 0)
+    p.connect(FILE_POLY, 3, MIXER, 1)
+    p.connect(FILE_POLY, 4, MIXER, 2)
+    p.connect(FILE_POLY, 5, MIXER, 3)
+    p.connect(MIXER, 0, MASTER, 0)          # mixer dry sum -> master
+
+    # keep the fxin stub so master's receive~ fxin has a matching send even
+    # when no effect is wired between mixer fxout and master fxin (otherwise
+    # Pd logs "no matching send" harmlessly but noisily)
     FXIN_STUB = p.obj(600, 320, "sig~ 0")
     FXIN_SEND = p.obj(600, 360, "send~ fxin")
     p.connect(FXIN_STUB, 0, FXIN_SEND, 0)
@@ -38,5 +46,6 @@ def build_core(p):
         "GRID": GRID,
         "FILE_POLY": FILE_POLY,
         "MAPPING": MAPPING,
+        "MIXER": MIXER,
         "MASTER": MASTER,
     }

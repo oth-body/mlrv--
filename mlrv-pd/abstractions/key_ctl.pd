@@ -1,0 +1,11 @@
+#N canvas 0 0 800 300 10;
+#X obj 20 20 key;
+#X msg 20 70 ctl 2 \$1 1;
+#X obj 300 20 keyup;
+#X msg 300 70 ctl 2 \$1 0;
+#X obj 20 130 outlet;
+#X text 20 180 computer-keyboard -> ctl adapter. keycode becomes the ctl id (class 2: srcid = 256+code -- codes above 127 exceed mapper's 384-cell reverse table and will not bind -- letters/digits fit). needs Pd GUI focus live -- silent headless.;
+#X connect 0 0 1 0;
+#X connect 2 0 3 0;
+#X connect 1 0 4 0;
+#X connect 3 0 4 0;

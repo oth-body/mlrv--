@@ -1,0 +1,13 @@
+#N canvas 0 0 900 500 10;
+#X text 20 20 glow_demo.pd -- tilt light-toy: serialosc keys -> glow inlet 0 \, tilt sensor -> glow inlet 1 \, glow LEDs -> grid -> serialosc. tap keys to paint light \, tilt the grid to pour the comet around \, shake hard to clear. launch via mlrv-pd/run_glow.sh. no audio -- pure control/LEDs.;
+#X obj 20 200 serialosc 8000 /monome;
+#X obj 20 260 grid;
+#X obj 300 200 glow 60;
+#X obj 20 400 loadbang;
+#X obj 20 320 print device;
+#X connect 4 0 1 0;
+#X connect 1 1 3 0;
+#X connect 3 0 2 0;
+#X connect 2 0 1 1;
+#X connect 1 2 3 1;
+#X connect 1 0 5 0;

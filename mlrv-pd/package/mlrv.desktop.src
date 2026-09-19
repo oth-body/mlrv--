@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=mlrv
+Comment=Live sample-cutting instrument for monome grid controllers (Pure Data port)
+Exec=AppRun
+Icon=mlrv
+Categories=Audio;Music;
+Terminal=true

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mlrv-pd · frontends</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">mlrv<span class="accent">-pd</span></div>
+    <div class="links">
+      <a href="index.html" class="active">Overview</a>
+      <a href="patch-graph.html">Patch graph</a>
+      <a href="virtual-grid.html">Virtual grid</a>
+      <a href="sample-loader.html">Sample loader</a>
+    </div>
+    <div class="right">
+      <span class="pill live">draft</span>
+      <span>ot.body / 2026-09-18</span>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <h1>A Pure Data reimplementation<br>of <span class="accent">mlrv2</span>, now with frontends.</h1>
+    <p class="lede">Three draft companion surfaces for a monome-grid-only live-sampling instrument.
+      None of these are wired to the Pd patch — they're explorations of what an mlrv frontend could
+      look like, built from the abstractions and patchers in <code style="font-family:var(--mono)">mlrv-pd/</code>.</p>
+    <div class="badges">
+      <span>Pd 0.56.5</span>
+      <span>monome 64</span>
+      <span>8 sample slots · 4 voices</span>
+      <span>grid-only</span>
+    </div>
+  </section>
+
+  <section class="explorations">
+
+    <a class="explore" href="patch-graph.html">
+      <div class="thumb">
+        <!-- mini patch graph -->
+        <svg width="240" height="120" viewBox="0 0 240 120" xmlns="http://www.w3.org/2000/svg">
+          <g fill="#14161b" stroke="#2e323d">
+            <rect x="10"  y="10" width="56" height="20" rx="2"/>
+            <rect x="100" y="10" width="56" height="20" rx="2"/>
+            <rect x="10"  y="80" width="56" height="20" rx="2"/>
+            <rect x="100" y="80" width="56" height="20" rx="2"/>
+          </g>
+          <g fill="#e6e8ec" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle">
+            <text x="38"  y="24">serialosc</text>
+            <text x="128" y="24">mapping</text>
+            <text x="38"  y="94">file_poly</text>
+            <text x="128" y="94">master</text>
+          </g>
+          <g stroke="#b8400b" stroke-width="1.2" fill="none">
+            <path d="M66 20 L100 20"/>
+            <path d="M66 90 L100 90"/>
+            <path d="M156 20 Q180 50 156 90"/>
+          </g>
+        </svg>
+      </div>
+      <div class="num">01 / exploration</div>
+      <h3>Patch graph</h3>
+      <p>The Pd source as a navigable web graph. Hover any object to see what it does, click to highlight
+        its connections. Useful for anyone reading the port without Pd open.</p>
+      <span class="go">→ view graph</span>
+    </a>
+
+    <a class="explore" href="virtual-grid.html">
+      <div class="thumb">
+        <div class="mini-grid" id="mini-grid-1"></div>
+      </div>
+      <div class="num">02 / exploration</div>
+      <h3>Virtual monome grid</h3>
+      <p>An 8×8 LED surface in the browser. Same coord scheme as the hardware — y=7 is the trigger row,
+        slot = x. Click cells to feel the instrument without the hardware.</p>
+      <span class="go">→ open grid</span>
+    </a>
+
+    <a class="explore" href="sample-loader.html">
+      <div class="thumb">
+        <svg width="240" height="120" viewBox="0 0 240 120" xmlns="http://www.w3.org/2000/svg">
+          <g fill="#1b1e25" stroke="#232730">
+            <rect x="20"  y="20" width="40" height="40" rx="4"/>
+            <rect x="70"  y="20" width="40" height="40" rx="4" stroke="#ff5500"/>
+            <rect x="120" y="20" width="40" height="40" rx="4"/>
+            <rect x="170" y="20" width="40" height="40" rx="4"/>
+          </g>
+          <g fill="#9097a3" font-family="JetBrains Mono, monospace" font-size="9" text-anchor="middle">
+            <text x="40"  y="42">slot 0</text>
+            <text x="90"  y="42">slot 1</text>
+            <text x="140" y="42">slot 2</text>
+            <text x="190" y="42">slot 3</text>
+          </g>
+          <g fill="#5f6672" font-family="JetBrains Mono, monospace" font-size="8" text-anchor="middle">
+            <text x="40"  y="74">— empty</text>
+            <text x="90"  y="74">kick.wav</text>
+            <text x="140" y="74">— empty</text>
+            <text x="190" y="74">— empty</text>
+          </g>
+        </svg>
+      </div>
+      <div class="num">03 / exploration</div>
+      <h3>Sample loader</h3>
+      <p>Drag-and-drop WAVs into slots 0–7, see loaded status, trigger playback through the same
+        <code style="font-family:var(--mono);font-size:11px">play</code> /
+        <code style="font-family:var(--mono);font-size:11px">stopall</code> messages
+        <code style="font-family:var(--mono);font-size:11px">file_poly</code> expects.</p>
+      <span class="go">→ load samples</span>
+    </a>
+
+  </section>
+
+  <section class="notes">
+    <h2>How to run</h2>
+    <p><b>Easiest:</b> just open <code>frontends/index.html</code> directly in a browser
+      (double-click, or <code>xdg-open frontends/index.html</code>). All four pages work
+      over <code>file://</code> — the patch-graph page has the <code>.pd</code> source
+      files bundled inline.</p>
+    <p style="margin-top:10px;"><b>Or, served over HTTP</b> (so the patch graph reflects
+      live edits to the <code>.pd</code> source without rebuilding):</p>
+    <pre style="background:var(--bg-elev);border:1px solid var(--line);border-radius:var(--radius-sm);padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--ink);overflow-x:auto;">cd mlrv-pd &amp;&amp; python3 -m http.server 8765 --bind 127.0.0.1
+# open http://127.0.0.1:8765/frontends/index.html</pre>
+    <p style="margin-top:10px;">Full docs in <code>frontends/README.md</code>.</p>
+
+    <h2>What these drafts are not</h2>
+    <ul>
+      <li>Not wired to the Pd patch. The Pd side remains grid-only — these are companion surfaces,
+        not replacements.</li>
+      <li>Not a real audio engine. The sample loader's play button only simulates the
+        <code>file_poly</code> message protocol; nothing makes sound in the browser.</li>
+      <li>Not a finished design. Surface archetypes here are Monitor (patch graph) and Operate
+        (grid + loader) — the goal is to test layouts, not commit to a look.</li>
+    </ul>
+
+    <h2>What informed them</h2>
+    <ul>
+      <li><code>CLAUDE.md</code> for the current state of the port (8 verified components, mixer not yet wired, tilt sensor not yet handled).</li>
+      <li><code>mapping.pd</code> — confirmed: y=7 trigger row, slot = x, (7,0) = stopall.</li>
+      <li><code>file_poly.pd</code> — confirmed: 8 slots × 4-voice round-robin polyphony.</li>
+      <li><code>master.pd</code> — confirmed: tanh soft-clip, RMS meter in dB full-scale 100.</li>
+    </ul>
+  </section>
+
+  <footer class="foot">
+    mlrv-pd frontends · draft 1 · screenshots from cap.so
+  </footer>
+
+  <script src="assets/site.js"></script>
+  <script>
+    // Populate the mini-grid thumbnail on the virtual-grid card
+    (function () {
+      const c = document.getElementById('mini-grid-1');
+      if (!c) return;
+      for (let i = 0; i < 64; i++) {
+        const s = document.createElement('span');
+        // light up y=7 row + x=2 lit
+        if (i >= 56) s.className = 'on';
+        else if (i === 2 || i === 10 || i === 25) s.className = 'on';
+        c.appendChild(s);
+      }
+    })();
+  </script>
+</body>
+</html>

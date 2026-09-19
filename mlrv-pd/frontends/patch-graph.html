@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patch graph · mlrv-pd frontends</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">mlrv<span class="accent">-pd</span></div>
+    <div class="links">
+      <a href="index.html">Overview</a>
+      <a href="patch-graph.html" class="active">Patch graph</a>
+      <a href="virtual-grid.html">Virtual grid</a>
+      <a href="sample-loader.html">Sample loader</a>
+    </div>
+    <div class="right">
+      <span class="pill">monitor surface</span>
+    </div>
+  </nav>
+
+  <div class="page">
+    <div class="page-head">
+      <h1>Patch graph</h1>
+      <p class="lede">The Pd source as a navigable web graph. Click any object to see what it does;
+        click a connection to highlight its full path. Files are read directly from
+        <code style="font-family:var(--mono);font-size:13px">mlrv-pd/{patchers,abstractions}/</code> at page-load time.</p>
+      <div class="meta">
+        <span><b>surface</b> monitor</span>
+        <span><b>parser</b> pure JS, stdlib only</span>
+        <span><b>files</b> 6</span>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:18px;">
+      <h2>File</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <label class="muted" for="file-select">View</label>
+        <select id="file-select">
+          <option value="../mlrv.pd">mlrv.pd (top-level)</option>
+          <option value="../patchers/serialosc.pd" selected>patchers/serialosc.pd</option>
+          <option value="../patchers/file_poly.pd">patchers/file_poly.pd</option>
+          <option value="../patchers/mapping.pd">patchers/mapping.pd</option>
+          <option value="../patchers/grid.pd">patchers/grid.pd</option>
+          <option value="../abstractions/mixer.pd">abstractions/mixer.pd</option>
+          <option value="../abstractions/master.pd">abstractions/master.pd</option>
+          <option value="../abstractions/play_loop~.pd">abstractions/play_loop~.pd</option>
+          <option value="../abstractions/sample_voice~.pd">abstractions/sample_voice~.pd</option>
+        </select>
+        <span class="dim" style="font-family:var(--mono);font-size:11px;">hover or click to inspect</span>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel" style="padding:0;">
+        <div style="padding:12px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <h2 style="margin:0;display:inline-block;">Graph</h2>
+            <span id="file-stats" class="dim" style="font-family:var(--mono);font-size:11px;margin-left:12px;"></span>
+          </div>
+          <div class="dim" style="font-family:var(--mono);font-size:11px;">
+            <span style="display:inline-block;width:8px;height:8px;background:#f5b942;border-radius:50%;margin-right:4px;"></span>inlet
+            <span style="display:inline-block;width:8px;height:8px;background:#4ade80;border-radius:50%;margin:0 4px 0 14px;"></span>outlet
+            <span style="display:inline-block;width:8px;height:8px;background:#a0c4ff;border-radius:50%;margin:0 4px 0 14px;"></span>audio
+          </div>
+        </div>
+        <div class="patch-canvas" id="canvas"></div>
+        <div class="status-line">
+          <span><b>tip</b> click an object or wire to inspect</span>
+          <span id="selection-info" style="margin-left:auto;"></span>
+        </div>
+      </div>
+
+      <aside class="patch-sidebar">
+        <div class="panel">
+          <h2>Object inspector</h2>
+          <div id="obj-detail" class="obj-detail">Click an object to inspect.</div>
+        </div>
+        <div class="panel">
+          <h2>Tables in this patch</h2>
+          <div id="tables-list" class="kv"></div>
+        </div>
+        <div class="panel">
+          <h2>Legend</h2>
+          <div style="font-size:12px;color:var(--ink-muted);line-height:1.7;">
+            <div><b style="color:var(--ink)">Box</b> &nbsp;Pd object — class + args shown</div>
+            <div><b style="color:var(--ink)">Orange dot</b> &nbsp;control inlet (left edge)</div>
+            <div><b style="color:var(--ink)">Green dot</b> &nbsp;control outlet (right edge)</div>
+            <div><b style="color:var(--ink)">Blue dot</b> &nbsp;audio inlet / outlet (~)</div>
+            <div><b style="color:var(--ink)">Orange curve</b> &nbsp;control connection</div>
+            <div><b style="color:var(--ink)">Blue curve</b> &nbsp;signal connection</div>
+            <div><b style="color:var(--ink)">Tan text</b> &nbsp;comment / doc block</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <footer class="foot">mlrv-pd · patch graph · draft</footer>
+
+  <script src="assets/site.js"></script>
+  <script src="assets/pd-parser.js"></script>
+  <script src="assets/embedded-pd.js"></script>
+  <script>
+    const sel = document.getElementById('file-select');
+    const canvas = document.getElementById('canvas');
+    const objDetail = document.getElementById('obj-detail');
+    const tablesList = document.getElementById('tables-list');
+    const fileStats = document.getElementById('file-stats');
+    const selectionInfo = document.getElementById('selection-info');
+
+    let currentGraph = null;
+
+    async function load(file) {
+      let text = null;
+      // Prefer fetching the live file (works when served over HTTP and reflects
+      // the latest source). Fall back to the inlined copy embedded-pd.js for
+      // file:// usage, where browsers refuse to fetch().
+      try {
+        const res = await fetch(file);
+        if (res.ok) {
+          text = await res.text();
+        } else {
+          throw new Error(res.status + ' ' + res.statusText);
+        }
+      } catch (err) {
+        if (window.MLRV_EMBEDDED_PD && window.MLRV_EMBEDDED_PD[file]) {
+          text = window.MLRV_EMBEDDED_PD[file];
+          showOfflineBadge(true);
+        } else {
+          canvas.innerHTML = `<div style="padding:24px;color:var(--bad);font-family:var(--mono);font-size:12px;">Failed to load ${file}: ${err.message}<br><br><span style="color:var(--ink-muted);">This file isn't in the embedded set (only the 9 main .pd files are bundled). Open the site via a local HTTP server to read arbitrary files.</span></div>`;
+          return;
+        }
+      }
+      const g = window.MLRV_PD.parse(text);
+      currentGraph = g;
+      canvas.innerHTML = window.MLRV_PD.renderSVG(g);
+      fileStats.textContent = `${g.objs.length} objects · ${g.connects.length} connections`;
+      // Build the tables list
+      tablesList.innerHTML = '';
+      if (g.tables.length === 0) {
+        tablesList.innerHTML = '<div class="v" style="color:var(--ink-dim);font-style:italic;">none</div>';
+      } else {
+        for (const t of g.tables) {
+          const k = document.createElement('div'); k.className = 'k'; k.textContent = t;
+          const v = document.createElement('div'); v.className = 'v'; v.textContent = '(sample buffer)';
+          tablesList.appendChild(k); tablesList.appendChild(v);
+        }
+      }
+      // Wire up interactivity
+      canvas.querySelectorAll('.obj').forEach(el => {
+        el.addEventListener('click', () => selectObj(+el.dataset.idx));
+      });
+      canvas.querySelectorAll('.connect').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectConnection(+el.dataset.from, +el.dataset.to);
+        });
+      });
+      // Clear selection on background click
+      canvas.querySelector('svg').addEventListener('click', () => clearSelection());
+      clearSelection();
+    }
+
+    function showOfflineBadge(visible) {
+      let badge = document.getElementById('offline-badge');
+      if (visible) {
+        if (!badge) {
+          badge = document.createElement('div');
+          badge.id = 'offline-badge';
+          badge.style.cssText = 'position:fixed;bottom:14px;right:14px;font-family:var(--mono);font-size:11px;color:var(--ink-muted);background:var(--bg-elev);border:1px solid var(--line);padding:6px 10px;border-radius:var(--radius-sm);z-index:100;box-shadow:0 4px 12px rgba(0,0,0,0.4);';
+          badge.innerHTML = '<span style="color:var(--accent);">●</span> file:// mode — using embedded source';
+          document.body.appendChild(badge);
+        }
+      } else if (badge) {
+        badge.remove();
+      }
+    }
+
+    function selectObj(idx) {
+      const o = currentGraph.objs[idx];
+      if (!o) return;
+      // Highlight
+      canvas.querySelectorAll('.obj').forEach(el => el.classList.remove('selected'));
+      canvas.querySelectorAll('.connect').forEach(el => el.classList.remove('selected'));
+      canvas.querySelectorAll(`.obj[data-idx="${idx}"]`).forEach(el => el.classList.add('selected'));
+      canvas.querySelectorAll(`.connect[data-from="${idx}"], .connect[data-to="${idx}"]`)
+        .forEach(el => el.classList.add('selected'));
+      // Detail
+      const description = window.MLRV.describePdObj(o.cls);
+      const argsLine = o.args.length ? o.args.map(a => a).join(' ') : '';
+      objDetail.innerHTML =
+        `<span class="label">${escapeHtml(o.cls)}</span> #${o.idx}\n` +
+        `at (${o.x}, ${o.y})\n` +
+        `args: ${escapeHtml(argsLine || '(none)')}\n` +
+        `\n${description}`;
+      selectionInfo.innerHTML = `<b>selected</b> #${o.idx} ${escapeHtml(o.cls)}`;
+    }
+    function selectConnection(from, to) {
+      canvas.querySelectorAll('.obj').forEach(el => el.classList.remove('selected'));
+      canvas.querySelectorAll('.connect').forEach(el => el.classList.remove('selected'));
+      canvas.querySelectorAll(`.obj[data-idx="${from}"], .obj[data-idx="${to}"]`)
+        .forEach(el => el.classList.add('selected'));
+      canvas.querySelectorAll(`.connect[data-from="${from}"][data-to="${to}"]`)
+        .forEach(el => el.classList.add('selected'));
+      const f = currentGraph.objs[from], t = currentGraph.objs[to];
+      objDetail.innerHTML =
+        `<span class="label">connection</span>\n` +
+        `from #${from} ${escapeHtml(f.cls)} outlet →\n` +
+        `to   #${to} ${escapeHtml(t.cls)} inlet\n` +
+        `\nTwo objects wired. Click an object to see its role in the chain.`;
+      selectionInfo.innerHTML = `<b>selected</b> connection #${from} → #${to}`;
+    }
+    function clearSelection() {
+      canvas.querySelectorAll('.obj').forEach(el => el.classList.remove('selected'));
+      canvas.querySelectorAll('.connect').forEach(el => el.classList.remove('selected'));
+      objDetail.textContent = 'Click an object to inspect.';
+      selectionInfo.innerHTML = '';
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]));
+    }
+
+    sel.addEventListener('change', () => load(sel.value));
+    load(sel.value);
+  </script>
+</body>
+</html>

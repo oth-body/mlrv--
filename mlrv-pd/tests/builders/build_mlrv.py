@@ -11,12 +11,10 @@ HEADER = p.text(
     "mlrv.pd -- top-level instrument (Turn 16\\, 2026-09-18). Wires the 8 "
     "independently-verified components into one instrument: serialosc "
     "(grid I/O) -> mapping (key->action) -> file_poly (sample playback) "
-    "-> master (output bus) -> dac~. grid.pd sits between mapping and "
+    "-> mixer (Phase 3.2) -> master (output bus) -> dac~. grid.pd sits between mapping and "
     "serialosc\\'s LED inlet (protocol-agnostic passthrough\\, kept for "
     "the correct architectural seam even though it is currently a no-op). "
-    "mixer.pd is NOT wired in yet -- file_poly still sums its own 4 "
-    "voices internally and feeds master directly (documented TODO\\, "
-    "CLAUDE.md). On load: enables DSP\\, sets master gain to 0.8 (headroom "
+    "On load: enables DSP\\, sets master gain to 0.8 (headroom "
     "margin)\\, triggers a serialosc rescan\\, and loads two short "
     "placeholder demo tones (mlrv-pd/samples/) into slots 0 and 1 so "
     "pressing the two leftmost trigger-row keys (y=7) produces audible "
@@ -35,12 +33,11 @@ HEADER = p.text(
 )
 
 core = build_core(p)
-SERIALOSC, GRID, FILE_POLY, MAPPING, MASTER = (
-    core["SERIALOSC"], core["GRID"], core["FILE_POLY"], core["MAPPING"], core["MASTER"]
+SERIALOSC, GRID, FILE_POLY, MAPPING, MIXER, MASTER = (
+    core["SERIALOSC"], core["GRID"], core["FILE_POLY"], core["MAPPING"], core["MIXER"], core["MASTER"]
 )
 
 DAC = p.obj(600, 260, "dac~ 1 2")
-p.connect(FILE_POLY, 0, MASTER, 0)      # file_poly audio outlet~ -> master inlet~0
 p.connect(MASTER, 0, DAC, 0)
 p.connect(MASTER, 0, DAC, 1)
 

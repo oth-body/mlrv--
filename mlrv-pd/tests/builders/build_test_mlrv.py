@@ -23,8 +23,8 @@ HEADER = p.text(
 )
 
 core = build_core(p)
-SERIALOSC, GRID, FILE_POLY, MAPPING, MASTER = (
-    core["SERIALOSC"], core["GRID"], core["FILE_POLY"], core["MAPPING"], core["MASTER"]
+SERIALOSC, GRID, FILE_POLY, MAPPING, MIXER, MASTER = (
+    core["SERIALOSC"], core["GRID"], core["FILE_POLY"], core["MAPPING"], core["MIXER"], core["MASTER"]
 )
 
 N = 4410
@@ -32,7 +32,6 @@ CAP_TABLE = p.obj(150, 600, f"table mlrv-e2e-cap {N}")
 
 # audio capture tap (replaces dac~ -- no real audio hardware needed)
 TAPWRITE = p.obj(600, 420, "tabwrite~ mlrv-e2e-cap")
-p.connect(FILE_POLY, 0, MASTER, 0)
 p.connect(MASTER, 0, TAPWRITE, 0)
 
 # LED capture tap: whatever mapping.pd sends grid.pd for the triggered

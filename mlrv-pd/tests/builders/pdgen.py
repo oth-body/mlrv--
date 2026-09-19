@@ -19,6 +19,10 @@ class Patch:
         self.objs.append(f"#X msg {x} {y} {text};")
         return len(self.objs) - 1
 
+    def floatatom(self, x, y, w=5):
+        self.objs.append(f"#X floatatom {x} {y} {w} 0 0 0 - - - 0;")
+        return len(self.objs) - 1
+
     def text(self, x, y, text):
         self.objs.append(f"#X text {x} {y} {text};")
         return len(self.objs) - 1

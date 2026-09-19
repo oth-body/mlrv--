@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Virtual grid · mlrv-pd frontends</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">mlrv<span class="accent">-pd</span></div>
+    <div class="links">
+      <a href="index.html">Overview</a>
+      <a href="patch-graph.html">Patch graph</a>
+      <a href="virtual-grid.html" class="active">Virtual grid</a>
+      <a href="sample-loader.html">Sample loader</a>
+    </div>
+    <div class="right">
+      <span class="pill live">clickable</span>
+    </div>
+  </nav>
+
+  <div class="page">
+    <div class="page-head">
+      <h1>Virtual monome grid</h1>
+      <p class="lede">A browser stand-in for the hardware. Presses dispatch the same
+        <code style="font-family:var(--mono);font-size:13px">x y state</code> tuple
+        <code style="font-family:var(--mono);font-size:13px">mapping.pd</code> expects;
+        LEDs light up exactly as the device would respond.</p>
+      <div class="meta">
+        <span><b>surface</b> operate</span>
+        <span><b>resolution</b> 8 × 8 (64 keys)</span>
+        <span><b>protocol</b> OSC <code>/monome/grid/key x y state</code></span>
+      </div>
+    </div>
+
+    <div class="two-col">
+
+      <div class="panel">
+        <h2>Grid</h2>
+        <div style="display:flex;gap:36px;align-items:center;flex-wrap:wrap;">
+          <div class="grid-wrap"><div id="grid"></div></div>
+          <div>
+            <div style="font-size:13px;color:var(--ink-muted);margin-bottom:10px;max-width:280px;">
+              Click any cell to send a press event. The mapping rule:
+              <code style="font-family:var(--mono);font-size:12px;background:var(--bg-elev-2);padding:1px 4px;border-radius:3px;color:var(--ink)">y=7, slot=x</code>.
+              Press <code style="font-family:var(--mono);font-size:12px;background:var(--bg-elev-2);padding:1px 4px;border-radius:3px;color:var(--ink)">(7,0)</code> for <b>stopall</b>.
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;font-family:var(--mono);font-size:11px;color:var(--ink-dim);">
+              <div>trigger row: y=7 (lit in orange)</div>
+              <div>slot row: x=0..7 → file_poly slot 0..7</div>
+              <div>active voices: <span id="active-voices">0</span></div>
+            </div>
+            <div style="margin-top:14px;display:flex;gap:8px;">
+              <button class="btn tiny" id="clear-led">clear LEDs</button>
+              <button class="btn tiny ghost" id="panic">panic (stopall)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <aside>
+        <div class="panel">
+          <h2>Event stream</h2>
+          <div class="log" id="log"></div>
+        </div>
+        <div class="panel">
+          <h2>Mapping cheat sheet</h2>
+          <div style="font-size:12px;color:var(--ink-muted);line-height:1.7;">
+            <div><b style="color:var(--ink)">Press (x, 7)</b> &nbsp;→ play slot <code>x</code></div>
+            <div><b style="color:var(--ink)">Press (0, 7)</b> &nbsp;→ stopall</div>
+            <div><b style="color:var(--ink)">Release anywhere</b> &nbsp;→ ignored (current rule)</div>
+            <div><b style="color:var(--ink)">Press (x, y≠7)</b> &nbsp;→ ignored (current rule)</div>
+            <div style="margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--ink-dim);">
+              Deferred: set-select rows, loop-edit rows, per-voice stops, VU/debug cols.
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <footer class="foot">mlrv-pd · virtual grid · draft</footer>
+
+  <script src="assets/site.js"></script>
+  <script>
+    const gridEl = document.getElementById('grid');
+    const log = document.getElementById('log');
+    const { cells } = window.MLRV.buildGrid(gridEl);
+
+    // Slot state — 0..7
+    const slots = Array(8).fill(null).map((_, i) => ({
+      idx: i,
+      loaded: i < 2, // pretend slots 0 and 1 are preloaded
+      name: i === 0 ? 'demo-tone-0.wav'
+          : i === 1 ? 'demo-tone-1.wav'
+          : null,
+      frames: i === 0 ? 4410 : i === 1 ? 2205 : 0,
+    }));
+    const voices = [null, null, null, null]; // 4 voice polyphony
+    const activeVoicesEl = document.getElementById('active-voices');
+
+    function refreshActiveVoices() {
+      const n = voices.filter(v => v !== null).length;
+      activeVoicesEl.textContent = n;
+    }
+
+    function press(x, y, state) {
+      window.MLRV.appendLog(log, state ? 'key' : 'key',
+        `x=${x} y=${y} state=${state}`);
+      // Mark cell held briefly for visual feedback
+      const cell = cells[y * 8 + x];
+      if (state === 1) {
+        cell.classList.add('held');
+        // Map: y=7 → trigger row
+        if (y === 7) {
+          if (x === 0) {
+            // stopall
+            window.MLRV.appendLog(log, 'stop', `stopall (cleared ${voices.filter(v=>v).length} voices)`);
+            voices.fill(null);
+            // Clear all LEDs
+            for (const c of cells) c.dataset.level = '0';
+            refreshActiveVoices();
+          } else {
+            const slot = slots[x];
+            if (slot && slot.loaded) {
+              // round-robin voice allocation
+              let v = voices.indexOf(null);
+              if (v === -1) v = 0; // steal oldest
+              voices[v] = { slot: x, startedAt: performance.now() };
+              window.MLRV.appendLog(log, 'play', `voice ${v+1} slot ${x} ${slot.name} (rate=1, start=0, end=${slot.frames})`);
+              // Light up the trigger cell
+              window.MLRV.setLevel(cells, x, 7, 15);
+              // Light up the corresponding column with a dim level to indicate active
+              for (let yy = 0; yy < 7; yy++) {
+                window.MLRV.setLevel(cells, x, yy, 4);
+              }
+              refreshActiveVoices();
+            } else {
+              window.MLRV.appendLog(log, 'key', `slot ${x} empty — ignored`);
+            }
+          }
+        } else {
+          // off the trigger row — currently a no-op
+        }
+      } else {
+        cell.classList.remove('held');
+      }
+    }
+
+    // Wire click handlers
+    for (let y = 0; y < 8; y++) {
+      for (let x = 0; x < 8; x++) {
+        const c = cells[y * 8 + x];
+        let down = false;
+        c.addEventListener('mousedown', (e) => { e.preventDefault(); down = true; press(x, y, 1); });
+        c.addEventListener('mouseup',   () => { if (down) { press(x, y, 0); down = false; } });
+        c.addEventListener('mouseleave',() => { if (down) { press(x, y, 0); down = false; } });
+        // Mark slot status on the y=7 row
+        if (y === 7) {
+          c.classList.add(slots[x].loaded ? 'slot-loaded' : 'slot-empty');
+        }
+      }
+    }
+
+    document.getElementById('clear-led').addEventListener('click', () => {
+      for (const c of cells) c.dataset.level = '0';
+      window.MLRV.appendLog(log, 'led', `clear all 64 LEDs`);
+    });
+    document.getElementById('panic').addEventListener('click', () => {
+      press(0, 7, 1);
+      press(0, 7, 0);
+    });
+
+    // Seed with a couple of starting events so the log isn't empty
+    window.MLRV.appendLog(log, 'osc', `connect 127.0.0.1:12002`);
+    window.MLRV.appendLog(log, 'osc', `→ /serialosc/list`);
+    window.MLRV.appendLog(log, 'osc', `← /serialosc/device serial m64-0865 40921`);
+    window.MLRV.appendLog(log, 'osc', `→ /sys/port 8000`);
+    window.MLRV.appendLog(log, 'osc', `→ /sys/prefix /monome`);
+    window.MLRV.appendLog(log, 'led', `handshake complete — grid ready`);
+  </script>
+</body>
+</html>

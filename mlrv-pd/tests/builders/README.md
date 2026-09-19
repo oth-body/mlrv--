@@ -10,7 +10,14 @@ class hit this port at least four separate times before this tool existed.
 
 `build_mixer.py` and `build_test_mixer.py` are the generators for
 `mlrv-pd/abstractions/mixer.pd` and `mlrv-pd/tests/test_mixer.pd`
-respectively. Run them from this directory:
+respectively. `build_pong.py` generates `mlrv-pd/patchers/pong.pd`
+(the 8x8 grid Pong game, ~190 objects -- hand-tracking indices at that
+size is exactly the failure mode this tooling exists to prevent) and
+`build_test_pong.py` generates its deterministic test patch
+`mlrv-pd/tests/test_pong.pd`. `build_glow.py` / `build_test_glow.py` do the
+same for the tilt light-toy (`mlrv-pd/patchers/glow.pd`, `run_glow_test.sh`),
+and `build_tiltvis.py` / `build_test_tiltvis.py` for the gyroscope
+visualizer (`mlrv-pd/patchers/tiltvis.pd`, `run_tiltvis_test.sh`). Run them from this directory:
 
 ```sh
 cd mlrv-pd/tests/builders

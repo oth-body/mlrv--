@@ -13,11 +13,18 @@
 #
 # Usage: mlrv-pd/run_mlrv.sh          (normal run, console visible)
 #        mlrv-pd/run_mlrv.sh -nogui   (headless)
+#
+# Turn 21+ fix: Pd silently ignores flags placed AFTER the patch file
+# it's told to open -- `pd file.pd -nogui` does NOT suppress the GUI,
+# only `pd -nogui file.pd` does (probe-verified, no error either way,
+# this script's own "-nogui" usage note above never actually worked
+# until this fix). "$@" must come before the file argument, not after.
 set -u
 cd "$(dirname "$0")/.." || exit 1
 
 exec pd \
+    "$@" \
     -path mlrv-pd/abstractions \
     -path mlrv-pd/patchers \
     -path mlrv-pd/samples \
-    mlrv-pd/mlrv.pd "$@"
+    mlrv-pd/mlrv.pd

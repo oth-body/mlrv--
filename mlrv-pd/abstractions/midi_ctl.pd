@@ -1,0 +1,12 @@
+#N canvas 0 0 800 300 10;
+#X obj 20 20 ctlin;
+#X obj 20 70 / 127;
+#X obj 20 120 pack f f;
+#X msg 20 170 ctl 0 \$2 \$1;
+#X obj 20 220 outlet;
+#X text 300 20 MIDI CC -> ctl adapter. ctlin outlets: value (hot) then cc# -- right-to-left puts cc# cold-first \, value hot-last (gotcha 15) -- value normalized to 0-1. live MIDI needs hardware -- loads clean without.;
+#X connect 0 0 1 0;
+#X connect 0 1 2 1;
+#X connect 1 0 2 0;
+#X connect 2 0 3 0;
+#X connect 3 0 4 0;

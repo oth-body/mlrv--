@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sample loader · mlrv-pd frontends</title>
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="brand">mlrv<span class="accent">-pd</span></div>
+    <div class="links">
+      <a href="index.html">Overview</a>
+      <a href="patch-graph.html">Patch graph</a>
+      <a href="virtual-grid.html">Virtual grid</a>
+      <a href="sample-loader.html" class="active">Sample loader</a>
+    </div>
+    <div class="right">
+      <span class="pill">operate</span>
+    </div>
+  </nav>
+
+  <div class="page">
+    <div class="page-head">
+      <h1>Sample loader</h1>
+      <p class="lede">Drag-and-drop WAVs into slots 0–7. The play and stopall buttons send the same
+        <code style="font-family:var(--mono);font-size:13px">file_poly</code> messages the grid would:
+        <code style="font-family:var(--mono);font-size:13px">play &lt;slot&gt; 1 0 &lt;frames&gt;</code> /
+        <code style="font-family:var(--mono);font-size:13px">stopall</code>.</p>
+      <div class="meta">
+        <span><b>surface</b> operate</span>
+        <span><b>slots</b> 8</span>
+        <span><b>polyphony</b> 4 voices (round-robin)</span>
+        <span><b>formats</b> WAV · AIFF · OGG</span>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:18px;">
+      <div class="dropzone" id="drop">
+        <div><strong>Drop WAV files here</strong> or <span style="color:var(--accent);cursor:pointer;text-decoration:underline;" id="pick">browse</span></div>
+        <div class="formats">up to 8 slots · audio decoded client-side · frames shown after load</div>
+        <input type="file" id="file" accept=".wav,.aif,.aiff,.ogg,.flac" multiple style="display:none;">
+      </div>
+    </div>
+
+    <div class="two-col">
+
+      <div class="panel">
+        <h2>Slots</h2>
+        <div class="slot-grid" id="slots"></div>
+      </div>
+
+      <aside>
+        <div class="panel">
+          <h2>Outgoing Pd messages</h2>
+          <div class="log" id="log"></div>
+        </div>
+        <div class="panel">
+          <h2>Master bus</h2>
+          <div style="font-family:var(--mono);font-size:12px;">
+            <div style="display:flex;justify-content:space-between;color:var(--ink-muted);">
+              <span>gain</span><span>0.80</span>
+            </div>
+            <div class="meter"><div id="meter" style="width:42%;"></div></div>
+            <div style="display:flex;justify-content:space-between;color:var(--ink-dim);font-size:11px;margin-top:4px;">
+              <span>-∞ dB</span><span>peak: <span id="peak">-12</span> dB</span>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Tips</h2>
+          <div style="font-size:12px;color:var(--ink-muted);line-height:1.7;">
+            <div>· Drag a file onto a specific slot to target it; onto the dropzone to fill next-empty.</div>
+            <div>· Loaded slots show frames; un-loaded slots are dim.</div>
+            <div>· Play triggers a 4-voice round-robin; stopall clears all voices.</div>
+            <div>· This page does not actually make sound — it only simulates the message protocol.</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <footer class="foot">mlrv-pd · sample loader · draft</footer>
+
+  <script src="assets/site.js"></script>
+  <script>
+    const dropEl = document.getElementById('drop');
+    const fileEl = document.getElementById('file');
+    const pickEl = document.getElementById('pick');
+    const slotsEl = document.getElementById('slots');
+    const log = document.getElementById('log');
+    const meterEl = document.getElementById('meter');
+    const peakEl = document.getElementById('peak');
+
+    // Slot state — 8 slots, 4 voices
+    const slots = Array(8).fill(null).map((_, i) => ({
+      idx: i,
+      name: null,
+      frames: 0,
+      playing: false,
+    }));
+    const voices = Array(4).fill(null);
+    let voiceCounter = 0;
+
+    function renderSlots() {
+      slotsEl.innerHTML = '';
+      for (const s of slots) {
+        const card = document.createElement('div');
+        card.className = 'slot' + (s.name ? '' : ' empty') + (s.playing ? ' playing' : '');
+        card.dataset.slot = s.idx;
+        card.innerHTML = `
+          <div class="head">
+            <span class="num">SLOT</span>
+            <span class="idx">${s.idx}</span>
+          </div>
+          <div>
+            <div class="name">${escapeHtml(s.name || '— empty —')}</div>
+            <div class="frames">${s.frames ? s.frames.toLocaleString() + ' frames' : '0 frames'}</div>
+          </div>
+          <div class="actions">
+            <button class="btn primary" data-action="play" ${s.name ? '' : 'disabled'}>play</button>
+            <button class="btn ghost"   data-action="stop" ${s.name ? '' : 'disabled'}>stop</button>
+          </div>
+        `;
+        slotsEl.appendChild(card);
+        card.querySelector('[data-action="play"]').addEventListener('click', () => play(s.idx));
+        card.querySelector('[data-action="stop"]').addEventListener('click', () => stopSlot(s.idx));
+        // Drop target on the card
+        card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('over'); });
+        card.addEventListener('dragleave', () => card.classList.remove('over'));
+        card.addEventListener('drop', e => {
+          e.preventDefault();
+          card.classList.remove('over');
+          const file = e.dataTransfer.files[0];
+          if (file) loadFile(file, s.idx);
+        });
+      }
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]));
+    }
+
+    async function loadFile(file, targetSlot = null) {
+      try {
+        const buf = await file.arrayBuffer();
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const decoded = await ctx.decodeAudioData(buf.slice(0));
+        // find a free slot if no target
+        let idx = targetSlot;
+        if (idx === null) {
+          idx = slots.findIndex(s => s.name === null);
+          if (idx === -1) {
+            window.MLRV.appendLog(log, 'led', `all 8 slots full — drop ignored`);
+            return;
+          }
+        }
+        slots[idx] = { idx, name: file.name, frames: decoded.length, playing: false };
+        renderSlots();
+        // Pd-side: emit the `load <slot> <name>` message — file_poly expects a *path*,
+        // so we'd need to write it to disk and pass the path back to Pd in a real
+        // integration. Show that contract for honesty.
+        window.MLRV.appendLog(log, 'play',
+          `load ${idx} ${file.name}   → would resolve to mlrv-sample-${idx} (${decoded.length} frames)`);
+      } catch (err) {
+        window.MLRV.appendLog(log, 'stop', `decode failed for ${file.name}: ${err.message}`);
+      }
+    }
+
+    function play(idx) {
+      const s = slots[idx];
+      if (!s || !s.name) return;
+      // Round-robin voice allocation
+      let v = voices.indexOf(null);
+      if (v === -1) v = voiceCounter++ % 4;
+      voices[v] = { slot: idx, startedAt: performance.now() };
+      s.playing = true;
+      // Emit the Pd message exactly as file_poly expects.
+      window.MLRV.appendLog(log, 'play',
+        `play ${idx} 1 0 ${s.frames}   → voice ${v+1} → mixer.pd (TODO: not wired) → master`);
+      renderSlots();
+      // Simulate the meter climbing when a voice starts
+      const cur = parseInt(meterEl.style.width) || 42;
+      const target = Math.min(96, cur + 14);
+      meterEl.style.width = target + '%';
+      peakEl.textContent = Math.round(20 * Math.log10(target / 100) || -12);
+      // Auto-stop after a simulated 2 seconds of playback
+      setTimeout(() => {
+        s.playing = false;
+        renderSlots();
+      }, 2000);
+    }
+
+    function stopSlot(idx) {
+      const s = slots[idx];
+      if (!s) return;
+      s.playing = false;
+      // If this slot is in any voice, free it.
+      for (let v = 0; v < 4; v++) {
+        if (voices[v] && voices[v].slot === idx) voices[v] = null;
+      }
+      window.MLRV.appendLog(log, 'stop', `stop voice holding slot ${idx}`);
+      renderSlots();
+    }
+
+    function stopall() {
+      let n = 0;
+      for (let v = 0; v < 4; v++) {
+        if (voices[v]) { n++; voices[v] = null; }
+      }
+      for (const s of slots) s.playing = false;
+      window.MLRV.appendLog(log, 'stop', `stopall (cleared ${n} voices)`);
+      renderSlots();
+      meterEl.style.width = '42%';
+      peakEl.textContent = '-12';
+    }
+
+    // Drop zone wiring
+    dropEl.addEventListener('dragover', e => { e.preventDefault(); dropEl.classList.add('over'); });
+    dropEl.addEventListener('dragleave', () => dropEl.classList.remove('over'));
+    dropEl.addEventListener('drop', e => {
+      e.preventDefault();
+      dropEl.classList.remove('over');
+      for (const file of e.dataTransfer.files) loadFile(file, null);
+    });
+    pickEl.addEventListener('click', () => fileEl.click());
+    fileEl.addEventListener('change', () => {
+      for (const file of fileEl.files) loadFile(file, null);
+      fileEl.value = '';
+    });
+
+    renderSlots();
+    // Seed with a couple of preloaded slots (matching mlrv.pd's loadbang)
+    window.MLRV.appendLog(log, 'osc', `file_poly initial state — no slots loaded yet`);
+    window.MLRV.appendLog(log, 'play', `load 0 demo-tone-0.wav   (4410 frames)`);
+    window.MLRV.appendLog(log, 'play', `load 1 demo-tone-1.wav   (2205 frames)`);
+    slots[0] = { idx: 0, name: 'demo-tone-0.wav', frames: 4410, playing: false };
+    slots[1] = { idx: 1, name: 'demo-tone-1.wav', frames: 2205, playing: false };
+    renderSlots();
+  </script>
+</body>
+</html>
